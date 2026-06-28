@@ -13,10 +13,18 @@ from data_structures.db_dialect import get_current_dialect
 class SeedQueryGenerator:
     """Load, execute, and filter SQL statements into a seed query file."""
 
-    def __init__(self, file_path='generated_sql/queries.sql', db_config=None):
+    def __init__(
+        self,
+        file_path='generated_sql/queries.sql',
+        db_config=None,
+        output_path='generated_sql/seedQuery.sql',
+    ):
         self.file_path = file_path
         # Connection defaults are filled later in `connect_db` based on dialect.
         self.db_config = db_config or {}
+        self.output_path = output_path
+        self.last_error = None
+        self.execution_stats = {}
 
     def query_iterator(self):
         """Yield non-empty SQL statements from `self.file_path`."""
@@ -140,6 +148,7 @@ class SeedQueryGenerator:
             #print (f "Successfully connected to {dialect_name} database")
             return conn
         except Exception as e:
+            self.last_error = e
             print(f"Database connection failed.: {e}")
             return None
 
@@ -194,17 +203,20 @@ class SeedQueryGenerator:
                     conn.commit()
                     return cursor.rowcount
         except Exception as e:
+            self.last_error = e
             print(f"Executing query failed.: {e}")
             raise
 
     def execute_query(self, query):
         """Execute one query with a short-lived connection."""
+        self.last_error = None
         conn = self.connect_db()
         if conn is None:
             return None
         try:
             return self.execute_query_with_connection(query, conn)
-        except Exception:
+        except Exception as exc:
+            self.last_error = exc
             return None
         finally:
             if conn:
@@ -222,7 +234,8 @@ class SeedQueryGenerator:
         dialect_name = dialect.name.upper()
         
         # Create/overwrite output file and write dialect-specific header.
-        seed_file_path = "./generated_sql/seedQuery.sql"
+        seed_file_path = self.output_path
+        os.makedirs(os.path.dirname(os.path.abspath(seed_file_path)), exist_ok=True)
         with open(seed_file_path, "w", encoding="utf-8") as f:
             if dialect_name != "POSTGRESQL":
                 target_db = self.db_config.get("database") or "test"
@@ -241,6 +254,10 @@ class SeedQueryGenerator:
 
         #Count the number of successful select queries
         success_count = 0
+        execution_success_count = 0
+        execution_failed_count = 0
+        error_stats = {}
+        error_examples = []
         
         # Batch buffer to avoid frequent tiny file writes.
         batch = []
@@ -255,6 +272,7 @@ class SeedQueryGenerator:
             result = self.execute_query(sql)
             
             if result is not None:
+                execution_success_count += 1
                 if isinstance(result, int):
                     print(f"Number of rows affected：{result}")
                 else:
@@ -264,6 +282,13 @@ class SeedQueryGenerator:
                     success_count += 1
                     print(f"Number of Result Rows：{len(result)}")
             else:
+                execution_failed_count += 1
+                self._record_query_error(
+                    query_index=i,
+                    sql=sql,
+                    error_stats=error_stats,
+                    error_examples=error_examples,
+                )
                 #print(sql)
                 print("Executing query failed.")
             
@@ -280,10 +305,61 @@ class SeedQueryGenerator:
             with open(seed_file_path, "a", encoding="utf-8") as f:
                 for seed in batch:
                     f.write(seed)
+
+        executed_total = execution_success_count + execution_failed_count
+        execution_accuracy = (
+            execution_success_count / executed_total if executed_total else 0.0
+        )
+        self.execution_stats = {
+            "total": executed_total,
+            "passed": execution_success_count,
+            "failed": execution_failed_count,
+            "accuracy": execution_accuracy,
+            "seed_query_count": success_count,
+            "error_stats": error_stats,
+            "error_examples": error_examples,
+        }
+
+        print(
+            "\nQuery execution complete: "
+            f"total={executed_total}, "
+            f"passed={execution_success_count}, "
+            f"failed={execution_failed_count}, "
+            f"accuracy={execution_accuracy * 100:.2f}%"
+        )
+        if error_stats:
+            print(f"Query execution error stats: {error_stats}")
         
         print(f"\nSeed Query Generation Complete！Successfully extracted {success_count} validSELECTInquiries")
         print(f"Seed query saved to: {seed_file_path}")
 
+    def _record_query_error(
+        self,
+        query_index,
+        sql,
+        error_stats,
+        error_examples,
+        max_error_examples=5,
+    ):
+        error = self.last_error
+        error_type = self._format_error_type(error)
+        error_stats[error_type] = error_stats.get(error_type, 0) + 1
+        if len(error_examples) < max_error_examples:
+            error_examples.append(
+                f"#{query_index}: {error_type}: {error}; SQL={self._compact_sql(sql)}"
+            )
 
-    
-       
+    def _format_error_type(self, error):
+        if error is None:
+            return "UnknownError"
+        error_type = type(error).__name__
+        error_args = getattr(error, "args", ())
+        if error_args:
+            return f"{error_type}:{error_args[0]}"
+        return error_type
+
+    def _compact_sql(self, sql, max_length=300):
+        compacted = " ".join(str(sql).split())
+        if len(compacted) <= max_length:
+            return compacted
+        return compacted[: max_length - 3] + "..."

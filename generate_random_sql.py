@@ -129,12 +129,42 @@ def generate_index_sqls(tables, dialect):
     return _generate_index_sqls(tables, dialect)
 
 
-def save_sql_to_file(sql: str, output_dir: str = "generated_sql", file_type: str = "all", mode: str = "w") -> str:
+def save_sql_to_file(
+    sql: str,
+    output_dir: str = "generated_sql",
+    file_type: str = "all",
+    mode: str = "w",
+    database_name: str = "test",
+) -> str:
     from sql_generation.random_sql.io_utils import save_sql_to_file as _save_sql_to_file
-    return _save_sql_to_file(sql, output_dir=output_dir, file_type=file_type, mode=mode)
+    return _save_sql_to_file(
+        sql,
+        output_dir=output_dir,
+        file_type=file_type,
+        mode=mode,
+        database_name=database_name,
+    )
 
 
-def Generate(subquery_depth: int = 3, total_insert_statements: int = 100, num_queries: int = 15, query_type: str = 'default', use_database_tables: bool = False, db_config: Optional[Dict] = None):
+def Generate(
+    subquery_depth: int = 3,
+    total_insert_statements: int = 100,
+    num_queries: int = 15,
+    query_type: str = 'default',
+    use_database_tables: bool = False,
+    db_config: Optional[Dict] = None,
+    output_dir: str = "generated_sql",
+    database_name: Optional[str] = None,
+):
     """Generate schema/data/query SQL files via the random SQL pipeline."""
     from sql_generation.random_sql.generator import Generate as _Generate
-    return _Generate(subquery_depth=subquery_depth, total_insert_statements=total_insert_statements, num_queries=num_queries, query_type=query_type, use_database_tables=use_database_tables, db_config=db_config)
+    return _Generate(
+        subquery_depth=subquery_depth,
+        total_insert_statements=total_insert_statements,
+        num_queries=num_queries,
+        query_type=query_type,
+        use_database_tables=use_database_tables,
+        db_config=db_config,
+        output_dir=output_dir,
+        database_name=database_name,
+    )

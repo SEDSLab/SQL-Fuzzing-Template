@@ -1,12 +1,13 @@
 # RIFT Framework
 
 ## Purpose
-This project provides a SQL generation pipeline with four stages:
+This project provides a SQL generation pipeline with five stages:
 
-1. `generate_random_sql.py` and `get_seedQuery.py` generate seed SQL.
+1. `generate_random_sql.py` writes round-scoped SQL files under `generated_sql/roundX/`, then the pipeline creates and uses the matching `roundX` database for seed extraction.
 2. `preprocessor/` preprocesses generated SQL.
-3. `mutator/` applies one mutation rule at a time and produces multiple mutated SQLs.
-4. `comparison/` receives original SQL, mutated SQL, and database configuration as an interface for later result comparison.
+3. The pipeline reloads `schema.sql`, executes preprocessed SQL on the matching `roundX` database, records the execution success rate, and keeps only executable SQL in the preprocessed SQL file.
+4. `mutator/` applies one mutation rule at a time and produces multiple mutated SQLs.
+5. `comparison/` receives original SQL, mutated SQL, and database configuration as an interface for later result comparison.
 
 ## How to Run
 
@@ -84,7 +85,11 @@ If you want a new oracle, add a new subpackage under `comparison/` and register 
 
 ## Current Behavior
 
-- The generator creates seed SQL.
+- Each cycle writes files into `generated_sql/roundX/` and runs against database `roundX`.
+- The generator creates round-scoped schema and query SQL files.
+- The pipeline executes `schema.sql` before seed extraction and again before preprocessed SQL validation.
+- The pipeline logs `queries.sql` execution total, passed, failed, accuracy, error stats, and sampled errors.
 - The preprocessor rewrites seed SQL.
+- The pipeline executes preprocessed SQL on the round database, logs total, passed, failed, and accuracy, and rewrites the preprocessed SQL file with only passed statements.
 - The mutator applies rules one by one and produces multiple mutated queries.
 - The comparison stage is currently an interface only and does not perform real result checking yet.

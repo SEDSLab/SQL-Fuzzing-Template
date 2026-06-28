@@ -207,7 +207,13 @@ def generate_index_sqls(tables, dialect):
     return index_sqls
 
 
-def save_sql_to_file(sql: str, output_dir: str = "generated_sql", file_type: str = "all", mode: str = "w") -> str:
+def save_sql_to_file(
+    sql: str,
+    output_dir: str = "generated_sql",
+    file_type: str = "all",
+    mode: str = "w",
+    database_name: str = "test",
+) -> str:
     """Save the generated SQL to a file
     
     Parameter
@@ -238,8 +244,8 @@ def save_sql_to_file(sql: str, output_dir: str = "generated_sql", file_type: str
         if mode == "w":  #Write database settings only in overlay mode
             if file_type == "schema":
                 #Generate database operation statements using dialect methods
-                drop_db_sql = dialect.get_drop_database_sql("test")
-                create_db_sql = dialect.get_create_database_sql("test")
+                drop_db_sql = dialect.get_drop_database_sql(database_name)
+                create_db_sql = dialect.get_create_database_sql(database_name)
                 f.write(drop_db_sql)
                 if drop_db_sql and not drop_db_sql.endswith("\n"):
                     f.write("\n")
@@ -248,7 +254,7 @@ def save_sql_to_file(sql: str, output_dir: str = "generated_sql", file_type: str
                     f.write("\n")
             
             #Generate statements using databases using dialect methods
-            use_db_sql = dialect.get_use_database_sql("test")
+            use_db_sql = dialect.get_use_database_sql(database_name)
             set_session_sql = dialect.get_session_settings_sql()
             if set_session_sql:
                 f.write(set_session_sql)
@@ -270,4 +276,3 @@ from typing import Optional, Dict
 # ------------------------------
 #The main function.
 # ------------------------------
-

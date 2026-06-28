@@ -2478,7 +2478,16 @@ def generate_random_sql(tables: List[Table], functions: List[Function], current_
     else:
         return select_node.to_sql()
 
-def Generate(subquery_depth: int = 3, total_insert_statements: int = 100, num_queries: int = 15, query_type: str = 'default', use_database_tables: bool = False, db_config: Optional[Dict] = None):
+def Generate(
+    subquery_depth: int = 3,
+    total_insert_statements: int = 100,
+    num_queries: int = 15,
+    query_type: str = 'default',
+    use_database_tables: bool = False,
+    db_config: Optional[Dict] = None,
+    output_dir: str = "generated_sql",
+    database_name: Optional[str] = None,
+):
     """：SQL（、）
 
     Parameter
@@ -2492,6 +2501,8 @@ def Generate(subquery_depth: int = 3, total_insert_statements: int = 100, num_qu
     
     # 
     resolved_db_config = db_config or {}
+    target_database = database_name or resolved_db_config.get("database") or "test"
+    os.makedirs(output_dir, exist_ok=True)
     if use_database_tables:
         required_keys = ["host", "port", "database", "user", "password", "dialect"]
         missing_keys = [k for k in required_keys if resolved_db_config.get(k) in (None, "")]
@@ -2522,9 +2533,7 @@ def Generate(subquery_depth: int = 3, total_insert_statements: int = 100, num_qu
             
             # Markdown
             if tables:
-                # generated_sql
-                os.makedirs("generated_sql", exist_ok=True)
-                md_file_path = os.path.join("generated_sql", "database_tables_info.md")
+                md_file_path = os.path.join(output_dir, "database_tables_info.md")
                 
                 try:
                     with open(md_file_path, 'w', encoding='utf-8') as md_file:
@@ -2642,7 +2651,12 @@ def Generate(subquery_depth: int = 3, total_insert_statements: int = 100, num_qu
         
         #Composite Table Building, Insertion and Indexing Statements
         schema_sql = "\n\n".join(create_sqls + insert_sqls + index_sqls)
-        schema_filepath = save_sql_to_file(schema_sql, file_type="schema")
+        schema_filepath = save_sql_to_file(
+            schema_sql,
+            output_dir=output_dir,
+            file_type="schema",
+            database_name=target_database,
+        )
     else:
         #Do not generate build and insert statements when using database tables
         print("Use database table structure，Skip Table Building and Insert Statement Generation")
@@ -2650,7 +2664,12 @@ def Generate(subquery_depth: int = 3, total_insert_statements: int = 100, num_qu
     
     #Generate and write query statements in batches to reduce memory usage
     batch_size = 1000  #Number of queries per batch
-    query_filepath = save_sql_to_file("", file_type="query")  #Create an empty file and write to use test;
+    query_filepath = save_sql_to_file(
+        "",
+        output_dir=output_dir,
+        file_type="query",
+        database_name=target_database,
+    )  #Create an empty file and write to use database;
     
     #Save index SQL to query file
     if not is_using_database_tables:
@@ -2666,14 +2685,14 @@ def Generate(subquery_depth: int = 3, total_insert_statements: int = 100, num_qu
             
             #Also save the index SQL to the indexes.sql file
             #Create indexes.sql file path
-            indexes_file_path = os.path.join("generated_sql", "indexes.sql")
+            indexes_file_path = os.path.join(output_dir, "indexes.sql")
             #Write use test statement and index SQL
             with open(indexes_file_path, "a", encoding="utf-8") as f:
                 #Get the current database dialect
                 from data_structures.db_dialect import get_current_dialect
                 dialect = get_current_dialect()
                 #Write use statement
-                use_db_sql = dialect.get_use_database_sql("test")
+                use_db_sql = dialect.get_use_database_sql(target_database)
                 if use_db_sql:
                     f.write(use_db_sql)
                     if not use_db_sql.endswith("\n"):
@@ -2682,7 +2701,7 @@ def Generate(subquery_depth: int = 3, total_insert_statements: int = 100, num_qu
                 f.write(index_sql_content)
     
     #Error log file path
-    error_log_path = os.path.join("generated_sql", "query_generation_errors.log")
+    error_log_path = os.path.join(output_dir, "query_generation_errors.log")
     
     #Open error log file for writing
     with open(error_log_path, "w", encoding="utf-8") as error_log:
@@ -2759,7 +2778,13 @@ def Generate(subquery_depth: int = 3, total_insert_statements: int = 100, num_qu
         
         #Writes the current batch of query statements to a file
         batch_sql = "\n\n".join(batch_queries)
-        save_sql_to_file(batch_sql, file_type="query", mode="a")
+        save_sql_to_file(
+            batch_sql,
+            output_dir=output_dir,
+            file_type="query",
+            mode="a",
+            database_name=target_database,
+        )
         
         #Log batch completion information to the error log
         with open(error_log_path, "a", encoding="utf-8") as error_log:

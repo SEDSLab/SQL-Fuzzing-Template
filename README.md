@@ -1,4 +1,4 @@
-# RIFT Framework
+# Framework
 
 ## Purpose
 This project provides a SQL generation pipeline with four stages:

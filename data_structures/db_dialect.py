@@ -140,8 +140,7 @@ class MySQLDialect(DBDialect):
             escaped_value = safe_value.replace("'", "''")
             return f"'{escaped_value}'"
         elif data_type.upper() in ['BOOLEAN', 'BOOL']:
-            #MySQL uses the true/false string to represent a Boolean value
-            return f"'{str(value).lower()}'"
+            return "TRUE" if str(value).lower() in {"true", "1"} else "FALSE"
         elif data_type.upper() == 'JSON':
             #Make sure the JSON value is in the correct quote format
             value_str = str(value)

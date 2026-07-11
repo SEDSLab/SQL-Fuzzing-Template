@@ -45,6 +45,14 @@ class LogicalNode(ASTNode):
             aliases.update(child.collect_column_aliases())
         return aliases
 
+    def collect_table_aliases(self) -> Set[str]:
+        """Collect table aliases referenced in logical expressions"""
+        aliases = set()
+        for child in self.children:
+            if hasattr(child, 'collect_table_aliases'):
+                aliases.update(child.collect_table_aliases())
+        return aliases
+
     def validate_columns(self, from_node: 'FromNode') -> Tuple[bool, List[str]]:
         """Verify that the column reference in the logical expression is valid"""
         errors = []

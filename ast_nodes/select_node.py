@@ -433,6 +433,8 @@ class SelectNode(ASTNode):
         #Collect all referenced table aliases
         referenced_aliases = set()
         for expr, _ in self.select_expressions:
+            if isinstance(expr, SubqueryNode):
+                continue
             referenced_aliases.update(expr.collect_table_aliases())
 
         #Collect table aliases defined in the from clause
@@ -444,7 +446,11 @@ class SelectNode(ASTNode):
 
         #Validate select Expression
         for expr, _ in self.select_expressions:
-            if hasattr(expr, 'validate_columns'):
+            if isinstance(expr, SubqueryNode):
+                valid, expr_errors = expr.validate_inner_columns()
+                if not valid:
+                    errors.extend(expr_errors)
+            elif hasattr(expr, 'validate_columns'):
                 valid, expr_errors = expr.validate_columns(self.from_clause)
                 if not valid:
                     errors.extend(expr_errors)

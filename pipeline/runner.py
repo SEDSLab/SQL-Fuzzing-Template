@@ -39,6 +39,8 @@ def _run_internal_generation(
         db_config=round_db_config,
         output_dir=round_dir,
         database_name=round_name,
+        generator_mode=run_settings.generator_mode,
+        grammar_path=run_settings.grammar_path,
     )
     generate_end = time.time()
     log_message(

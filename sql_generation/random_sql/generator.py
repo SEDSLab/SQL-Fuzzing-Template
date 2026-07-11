@@ -1,6 +1,7 @@
 """Primary random SQL query generator and batch output pipeline."""
 
 import os
+import json
 import random
 import re
 import string
@@ -89,6 +90,19 @@ def _get_subquery_depth() -> int:
 
 def _set_subquery_depth(depth: int) -> None:
     _state.set_subquery_depth(depth)
+
+
+def _load_configurable_grammar(path: str) -> Dict:
+    abs_path = os.path.abspath(path)
+    suffix = os.path.splitext(abs_path)[1].lower()
+    with open(abs_path, "r", encoding="utf-8") as file_obj:
+        if suffix in {".yaml", ".yml"}:
+            try:
+                import yaml
+            except Exception as exc:
+                raise RuntimeError("PyYAML is required to load YAML grammar files") from exc
+            return yaml.safe_load(file_obj) or {}
+        return json.load(file_obj)
 
 def generate_random_sql(tables: List[Table], functions: List[Function], current_depth: int = 0) -> str:
     """Generate random SQL queries"""
@@ -2487,6 +2501,8 @@ def Generate(
     db_config: Optional[Dict] = None,
     output_dir: str = "generated_sql",
     database_name: Optional[str] = None,
+    generator_mode: str = "random",
+    grammar_path: Optional[str] = None,
 ):
     """：SQL（、）
 
@@ -2576,6 +2592,12 @@ def Generate(
         tables = create_sample_tables()
     
     functions = create_sample_functions()
+    generator_mode = (generator_mode or "random").lower()
+    if query_type == "configurable":
+        generator_mode = "configurable"
+    grammar_overrides = None
+    if generator_mode == "configurable":
+        grammar_overrides = _load_configurable_grammar(grammar_path or "grammars/with_join_aggregate.yaml")
     _set_subquery_depth(subquery_depth)
     
     #Set global table structure information
@@ -2709,6 +2731,8 @@ def Generate(
         error_log.write(f"# Target number of queries: {num_queries}\n")
         error_log.write("\n")
     
+    total_success_generated = 0
+    total_failed_generated = 0
     for i in range(0, num_queries, batch_size):
         #Calculate the number of queries for the current batch
         current_batch_size = min(batch_size, num_queries - i)
@@ -2735,7 +2759,16 @@ def Generate(
             
             while retry_count < max_retries:
                 try:
-                    sql = generate_random_sql(tables, functions)
+                    if generator_mode == "configurable":
+                        from sql_generation.configurable_sql import generate_configurable_sql
+                        sql = generate_configurable_sql(
+                            tables,
+                            functions,
+                            grammar_overrides=grammar_overrides,
+                            seed=(i + j + 1) + retry_count,
+                        )
+                    else:
+                        sql = generate_random_sql(tables, functions)
                     batch_queries.append(sql)
                     success = True
                     success_count += 1
@@ -2785,6 +2818,8 @@ def Generate(
             mode="a",
             database_name=target_database,
         )
+        total_success_generated += success_count
+        total_failed_generated += fail_count
         
         #Log batch completion information to the error log
         with open(error_log_path, "a", encoding="utf-8") as error_log:
@@ -2809,13 +2844,11 @@ def Generate(
         batch_queries = []
     #Log final statistics to the error log
     with open(error_log_path, "a", encoding="utf-8") as error_log:
-        total_success = len([line for line in open(query_filepath, 'r', encoding='utf-8') if line.strip()])
-        total_fail = num_queries - total_success
         error_log.write("=== Final stats = = =\n")
         error_log.write(f"Target number of queries: {num_queries}\n")
-        error_log.write(f"Successfully Generated!: {total_success}\n")
-        error_log.write(f"Build Failed: {total_fail}\n")
-        error_log.write(f"Generation rate: {(total_success/num_queries)*100:.2f}%\n")
+        error_log.write(f"Successfully Generated!: {total_success_generated}\n")
+        error_log.write(f"Build Failed: {total_failed_generated}\n")
+        error_log.write(f"Generation rate: {(total_success_generated/num_queries)*100:.2f}%\n")
         error_log.write(f"\nGenerate Log Created Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     
     #Print final result information
@@ -2826,5 +2859,5 @@ def Generate(
     print(f"Query SQLSaved to: {query_filepath}")
     print(f"Error log saved to: {error_log_path}")
     print(f"Target number of queries: {num_queries}")
-    print(f"Actual Generated Quantity: {len(batch_queries) + (i if i > 0 else 0)}")
-    print(f"Generation rate: {(len(batch_queries) + (i if i > 0 else 0))/num_queries*100:.2f}%")
+    print(f"Actual Generated Quantity: {total_success_generated}")
+    print(f"Generation rate: {(total_success_generated/num_queries)*100:.2f}%")

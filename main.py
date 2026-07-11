@@ -10,17 +10,19 @@ if __name__ == '__main__':
     # Runtime configuration
     # =====================
     run_settings = RunSettings(
-        dialect_str='tidb',
+        dialect_str='mysql',
         oracle='RIFT',
         run_hours=24,
         use_database_tables=False,
+        generator_mode='configurable',
+        grammar_path='grammars/with_join_aggregate.yaml',
         db_config={
             "host": "127.0.0.1",
-            "port": 4000,
+            "port": 13306,
             "database": "test",
             "user": "root",
             "password": "123456",
-            "dialect": "TIDB",
+            "dialect": "MYSQL",
         },
     )
 

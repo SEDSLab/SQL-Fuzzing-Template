@@ -11,3 +11,5 @@ class RunSettings:
     run_hours: int = 24
     use_database_tables: bool = False
     db_config: Optional[Dict[str, Any]] = None
+    generator_mode: str = "random"
+    grammar_path: Optional[str] = None

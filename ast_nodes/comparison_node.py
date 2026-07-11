@@ -21,6 +21,12 @@ class ComparisonNode(ASTNode):
             'IS NULL', 'IS NOT NULL', 'IN', 'NOT IN',
             'BETWEEN', 'NOT BETWEEN', 'EXISTS', 'NOT EXISTS'
         }
+        any_all_operators = {
+            f"{comparison} {quantifier}"
+            for comparison in ['=', '<>', '!=', '<', '>', '<=', '>=']
+            for quantifier in ['ANY', 'ALL']
+        }
+        self.supported_operators.update(any_all_operators)
         
         #Verify that the operator supports
         if operator not in self.supported_operators:
@@ -54,9 +60,11 @@ class ComparisonNode(ASTNode):
 
         #Double Operator Operator
         if len(self.children) < 2:
-            return f"{left} {self.operator}"
+            return f"{left} IS NOT NULL" if left else ""
             
         right = self.children[1].to_sql()
+        if not right:
+            return f"{left} IS NOT NULL" if left else ""
 
         #IN/not IN Operator
         if self.operator in ['IN', 'NOT IN'] and right:

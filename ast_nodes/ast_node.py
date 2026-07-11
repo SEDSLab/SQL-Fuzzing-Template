@@ -62,3 +62,15 @@ class ASTNode:
                 return True
 
         return False
+
+    def get_referenced_columns(self) -> Set[str]:
+        """Collect referenced columns from this node and its descendants."""
+        columns = set()
+        column = getattr(self, "column", None)
+        table_alias = getattr(self, "table_alias", None)
+        if column is not None and table_alias:
+            columns.add(f"{table_alias}.{column.name}")
+        for child in self.children:
+            if hasattr(child, "get_referenced_columns"):
+                columns.update(child.get_referenced_columns())
+        return columns

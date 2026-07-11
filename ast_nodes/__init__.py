@@ -3,6 +3,7 @@
 #AST Node Package Initialization File
 from .ast_node import ASTNode
 from .arithmetic_node import ArithmeticNode
+from .alias_reference_node import AliasReferenceNode
 from .case_node import CaseNode
 from .column_reference_node import ColumnReferenceNode
 from .comparison_node import ComparisonNode
@@ -15,12 +16,14 @@ from .order_by_node import OrderByNode
 from .set_operation_node import SetOperationNode
 from .subquery_node import SubqueryNode
 from .with_node import WithNode
+from .with_select_node import WithSelectNode
 from .limit_node import LimitNode
 from .select_node import SelectNode
 
 __all__ = [
     'ASTNode',
     'ArithmeticNode',
+    'AliasReferenceNode',
     'CaseNode',
     'ColumnReferenceNode',
     'ComparisonNode',
@@ -33,6 +36,7 @@ __all__ = [
     'SetOperationNode',
     'SubqueryNode',
     'WithNode',
+    'WithSelectNode',
     'LimitNode',
     'SelectNode'
 ]

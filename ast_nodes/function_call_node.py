@@ -368,20 +368,23 @@ class FunctionCallNode(ASTNode):
 
         #Window function special handling
         if self.function.func_type == 'window':
-            
             window_parts = []
-            partition_by = self.metadata['partition_by']
+            partition_by = self.metadata.get('partition_by', [])
             if partition_by:
                 window_parts.append(f"PARTITION BY {', '.join(partition_by)}")
             
             #For window functions that require order BY, add a default order BY clause if there is no order BY
             #Includes row_number, rank, dense_rank, lead, lag and other functions
+            order_by = self.metadata.get('order_by', [])
             if not order_by and self.function.name in ['ROW_NUMBER', 'RANK', 'DENSE_RANK', 'NTILE', 'LEAD', 'LAG','PERCENT_RANK','CUME_DIST']:
                 #Use constant expressions as sort basis, avoid using location references not supported by MySQL
-                order_by = ['1=1']  #Use logical expressions instead of position references
+                order_by = ['(0 + 1)']  #Use expressions instead of position references
                 window_parts.append(f"ORDER BY {', '.join(order_by)}")
             elif order_by:
                 window_parts.append(f"ORDER BY {', '.join(order_by)}")
+            frame_clause = self.metadata.get('frame_clause')
+            if frame_clause:
+                window_parts.append(frame_clause)
 
             window_clause = f"OVER ({' '.join(window_parts)})"
             if args:

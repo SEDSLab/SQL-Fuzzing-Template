@@ -3,6 +3,7 @@
 #ArithmeticNode Class Definition - Arithmetic Expression Node
 from typing import Set, Tuple, List
 from .ast_node import ASTNode
+from .column_reference_node import ColumnReferenceNode
 from data_structures.node_type import NodeType
 
 class ArithmeticNode(ASTNode):
@@ -33,6 +34,14 @@ class ArithmeticNode(ASTNode):
         aliases = set()
         for child in self.children:
             aliases.update(child.collect_column_aliases())
+        return aliases
+
+    def collect_table_aliases(self) -> Set[str]:
+        """Collect table aliases referenced in arithmetic expressions"""
+        aliases = set()
+        for child in self.children:
+            if hasattr(child, 'collect_table_aliases'):
+                aliases.update(child.collect_table_aliases())
         return aliases
 
     def validate_columns(self, from_node: 'FromNode') -> Tuple[bool, List[str]]:

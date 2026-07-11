@@ -5,7 +5,7 @@ imports (for example `from generate_random_sql import ...`) continue to work.
 Most functions below are thin pass-through wrappers with stable signatures.
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Mapping, Optional, Union
 
 from ast_nodes import ASTNode, FromNode, SubqueryNode
 from data_structures.function import Function
@@ -124,6 +124,25 @@ def generate_random_sql(tables: List[Table], functions: List[Function], current_
     return _generate_random_sql(tables, functions, current_depth=current_depth)
 
 
+def generate_configurable_sql(
+    tables: List[Table],
+    functions: List[Function],
+    grammar_overrides: Optional[Mapping] = None,
+    seed: Optional[int] = None,
+    return_ast: bool = False,
+):
+    """Generate SQL using the new configurable AST-based SELECT generator."""
+    from sql_generation.configurable_sql import generate_configurable_sql as _generate_configurable_sql
+
+    return _generate_configurable_sql(
+        tables,
+        functions,
+        grammar_overrides=grammar_overrides,
+        seed=seed,
+        return_ast=return_ast,
+    )
+
+
 def generate_index_sqls(tables, dialect):
     from sql_generation.random_sql.io_utils import generate_index_sqls as _generate_index_sqls
     return _generate_index_sqls(tables, dialect)
@@ -155,6 +174,8 @@ def Generate(
     db_config: Optional[Dict] = None,
     output_dir: str = "generated_sql",
     database_name: Optional[str] = None,
+    generator_mode: str = "random",
+    grammar_path: Optional[str] = None,
 ):
     """Generate schema/data/query SQL files via the random SQL pipeline."""
     from sql_generation.random_sql.generator import Generate as _Generate
@@ -167,4 +188,6 @@ def Generate(
         db_config=db_config,
         output_dir=output_dir,
         database_name=database_name,
+        generator_mode=generator_mode,
+        grammar_path=grammar_path,
     )

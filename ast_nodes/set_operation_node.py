@@ -12,9 +12,12 @@ class SetOperationNode(ASTNode):
         super().__init__(NodeType.SET_OPERATION)
         self.operation_type = operation_type  # 'UNION', 'UNION ALL', 'INTERSECT', 'EXCEPT'
         self.queries: List['SelectNode'] = []  #Participate in select queries for collection operations
+        self.operations: List[str] = []  #Operator before each query after the first one
 
-    def add_query(self, select_node: 'SelectNode') -> None:
+    def add_query(self, select_node: 'SelectNode', operation_type: str = None) -> None:
         """Add a select query that participates in a collection operation"""
+        if self.queries:
+            self.operations.append((operation_type or self.operation_type).upper())
         self.queries.append(select_node)
         self.add_child(select_node)
 
@@ -52,27 +55,22 @@ class SetOperationNode(ASTNode):
         if len(query_sqls) < 2:
             return ""
         
-        #Special handling for Percona dialects: intersect and except operators are not supported in Percona 5.7
+        operations = self.operations[: len(query_sqls) - 1]
+        if len(operations) < len(query_sqls) - 1:
+            operations.extend([self.operation_type] * (len(query_sqls) - 1 - len(operations)))
+
+        parts = [query_sqls[0]]
+        for operation, sql in zip(operations, query_sqls[1:]):
+            rendered_operation = self._render_operation(operation, is_percona)
+            parts.append(rendered_operation)
+            parts.append(sql)
+        return " ".join(parts).strip()
+
+    def _render_operation(self, operation: str, is_percona: bool) -> str:
+        operation = (operation or self.operation_type).upper()
         if is_percona:
-            if self.operation_type in ['INTERSECT', 'EXCEPT']:
-                #Convert intersect and except to Union all in Percona
-                #Note: This is not a semantic equivalence conversion, but can avoid grammatical errors
-                #More sophisticated conversion strategies may be required in real-world applications
-                return " UNION ALL ".join(query_sqls).strip()
-            elif self.operation_type == "UNION":
-                #Percona supports Union but we use Union all uniformly to avoid potential issues
-                return " UNION ALL ".join(query_sqls).strip()
-            else:
-                #For Union all, leave as is
-                return " UNION ALL ".join(query_sqls).strip()
-        else:
-            #Normal handling of non-Percona dialects
-            if self.operation_type == "UNION ALL":
-                #Make sure that there is only one space before and after the operator, and that there are no extra spaces or line breaks
-                return " UNION ALL ".join(query_sqls).strip()
-            else:
-                #Process additional operators
-                return f" {self.operation_type} ".join(query_sqls).strip()
+            return "UNION ALL"
+        return operation
 
     def contains_window_function(self) -> bool:
         """Check to include window functions"""

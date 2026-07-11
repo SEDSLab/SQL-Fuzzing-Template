@@ -24,17 +24,19 @@ Edit `main.py`:
 
 ```python
 run_settings = RunSettings(
-    dialect_str='tidb',
+    dialect_str='mysql',
     oracle='RIFT',
     run_hours=24,
     use_database_tables=False,
+    generator_mode='configurable',
+    grammar_path='grammars/with_join_aggregate.yaml',
     db_config={
         "host": "127.0.0.1",
-        "port": 4000,
+        "port": 13306,
         "database": "test",
         "user": "root",
         "password": "123456",
-        "dialect": "TIDB",
+        "dialect": "MYSQL",
     },
 )
 ```
@@ -45,6 +47,8 @@ run_settings = RunSettings(
 - `oracle`: comparison target, such as `RIFT`.
 - `run_hours`: total runtime in hours.
 - `use_database_tables`: whether to load table metadata from a real database.
+- `generator_mode`: SQL generator mode. Use `random` for the original generator or `configurable` for the YAML grammar driven generator.
+- `grammar_path`: YAML grammar file path used when `generator_mode='configurable'`. The built-in grammar files live under the root `grammars/` directory.
 - `db_config`: database connection information.
 
 ## Required Project Files
